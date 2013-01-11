@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import csv
 import time
@@ -98,6 +99,9 @@ def get_insert(table, header):
         (table, field_names, field_markers)
 
 
+def safe_col(s):
+    return re.sub('\W', '_', s.lower())
+
 
 def main(input_file, user, password, host, table, database):
     print "Importing `%s' into MySQL database `%s.%s'" % (input_file, database, table)
@@ -117,7 +121,7 @@ def main(input_file, user, password, host, table, database):
         if header:
             cursor.execute(insert_sql, row)
         else:
-            header = [col.lower() for col in row]
+            header = [safe_col(col) for col in row]
             schema_sql = get_schema(table, header, col_types)
             cursor.execute(schema_sql)
             # create index for more efficient access
