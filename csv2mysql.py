@@ -100,14 +100,14 @@ def get_insert(table, header):
 
 
 def safe_col(s):
-    return re.sub('\W', '_', s.lower())
+    return re.sub('\W+', '_', s.lower()).strip('_')
 
 
 def main(input_file, user, password, host, table, database):
     print "Importing `%s' into MySQL database `%s.%s'" % (input_file, database, table)
     db = MySQLdb.connect(host=host, user=user, passwd=password)
     cursor = db.cursor()
-    # create database and table if doesn't exist
+    # create database and if doesn't exist
     cursor.execute('CREATE DATABASE IF NOT EXISTS %s;' % database)
     db.select_db(database)
 
@@ -123,6 +123,8 @@ def main(input_file, user, password, host, table, database):
         else:
             header = [safe_col(col) for col in row]
             schema_sql = get_schema(table, header, col_types)
+            # create table
+            cursor.execute('DROP TABLE IF EXISTS %s;' % table)
             cursor.execute(schema_sql)
             # create index for more efficient access
             try:
@@ -131,6 +133,7 @@ def main(input_file, user, password, host, table, database):
                 pass # index already exists
 
             print 'Inserting rows ...'
+            # SQL string for inserting data
             insert_sql = get_insert(table, header)
 
     # commit rows to database
@@ -153,4 +156,4 @@ if __name__ == '__main__':
         # use input file name for table
         args.table = os.path.splitext(os.path.basename(args.input_file))[0]
     
-    main(**vars(args))
+    main(args.input_file, args.user, args.password, args.host, args.table, args.database)
