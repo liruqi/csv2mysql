@@ -15,17 +15,23 @@ warnings.filterwarnings(action='ignore', category=MySQLdb.Warning)
 def get_type(s):
     """Find type for this string
     """
-    number_formats = (
-        (int, 'integer'),
-        (float, 'double'),
-    )
-    for cast, number_type in number_formats:
-        try:
-            cast(s)
-        except ValueError:
-            pass
+    # try integer type
+    try:
+        v = int(s)
+    except ValueError:
+        pass
+    else:
+        if abs(v) > 2147483647:
+            return 'bigint'
         else:
-            return number_type
+            return 'int'
+    # try float type
+    try:
+        float(s)
+    except ValueError:
+        pass
+    else:
+        return 'double'
 
     # check for timestamp
     dt_formats = (
@@ -52,10 +58,14 @@ def get_type(s):
 def most_common(l):
     """Return most common value from list
     """
+    # some formats trump others
+    for dt_type in ('text', 'bigint'):
+        if dt_type in l:
+            return dt_type
     return max(l, key=l.count)
 
 
-def get_col_types(input_file, max_rows=10):
+def get_col_types(input_file, max_rows=1000):
     """Find the type for each CSV column
     """
     csv_types = collections.defaultdict(list)
@@ -123,6 +133,7 @@ def main(input_file, user, password, host, table, database):
         else:
             header = [safe_col(col) for col in row]
             schema_sql = get_schema(table, header, col_types)
+            print schema_sql
             # create table
             cursor.execute('DROP TABLE IF EXISTS %s;' % table)
             cursor.execute(schema_sql)
