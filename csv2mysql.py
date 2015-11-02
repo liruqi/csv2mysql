@@ -115,7 +115,7 @@ def safe_col(s):
 
 def main(input_file, user, password, host, table, database):
     print "Importing `%s' into MySQL database `%s.%s'" % (input_file, database, table)
-    db = MySQLdb.connect(host=host, user=user, passwd=password)
+    db = MySQLdb.connect(host=host, user=user, passwd=password, charset='utf8')
     cursor = db.cursor()
     # create database and if doesn't exist
     cursor.execute('CREATE DATABASE IF NOT EXISTS %s;' % database)
