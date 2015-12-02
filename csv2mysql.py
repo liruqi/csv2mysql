@@ -113,7 +113,7 @@ def safe_col(s):
     return re.sub('\W+', '_', s.lower()).strip('_')
 
 
-def main(input_file, user, password, host, table, database):
+def main(input_file, user, password, host, table, database, max_inserts=10000):
     print "Importing `%s' into MySQL database `%s.%s'" % (input_file, database, table)
     db = MySQLdb.connect(host=host, user=user, passwd=password, charset='utf8')
     cursor = db.cursor()
@@ -127,9 +127,12 @@ def main(input_file, user, password, host, table, database):
     print col_types
 
     header = None
-    for row in csv.reader(open(input_file)):
+    for i, row in enumerate(csv.reader(open(input_file))):
         if header:
             cursor.execute(insert_sql, row)
+            if i % max_inserts == 0:
+                db.commit()
+                print 'commit'
         else:
             header = [safe_col(col) for col in row]
             schema_sql = get_schema(table, header, col_types)
