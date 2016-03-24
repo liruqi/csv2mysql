@@ -113,7 +113,7 @@ def safe_col(s):
     return re.sub('\W+', '_', s.lower()).strip('_')
 
 
-def main(input_file, user, password, host, table, database, max_inserts=10000):
+def mainToDatabase(input_file, user, password, host, table, database, max_inserts=10000):
     print "Importing `%s' into MySQL database `%s.%s'" % (input_file, database, table)
     db = MySQLdb.connect(host=host, user=user, passwd=password, charset='utf8')
     cursor = db.cursor()
@@ -149,13 +149,47 @@ def main(input_file, user, password, host, table, database, max_inserts=10000):
             print 'Inserting rows ...'
             # SQL string for inserting data
             insert_sql = get_insert(table, header)
+            print insert_sql
 
     # commit rows to database
     print 'Committing rows to database ...'
     db.commit()
     print 'Done!'
 
+def mainToFile(input_file, table, createtable):
+    output_file = input_file + ".sql"
+    print "Importing `%s' into MySQL file: `%s'" % (input_file, output_file)
 
+    sql = []
+    if createtable:
+        sql.append('CREATE DATABASE IF NOT EXISTS %s;' % database)
+        sql.append('USE DATABASE %s;' % database)
+
+    # define table
+    print 'Analyzing column types ...'
+    col_types = get_col_types(input_file)
+    print col_types
+    
+    header = None
+    for i, row in enumerate(csv.reader(open(input_file))):
+        if header:
+            sql.append('INSERT INTO %s VALUES (%s);' % \
+                       (table, ', '.join(['"%s"'%col for col in row])))
+        else:
+            header = [safe_col(col) for col in row]
+            schema_sql = get_schema(table, header, col_types)
+            print schema_sql
+            # create table
+            if createtable:
+                sql.append('DROP TABLE IF EXISTS %s;' % table)
+                sql.append(schema_sql)
+                # create index for more efficient access
+                sql.append('CREATE INDEX ids ON %s (id);' % table)
+
+    ofile = open(output_file, "w")
+    ofile.write("\n".join(sql))
+    sys.stdout.write("\n".join(sql[:5]) + "\n...\n")
+    ofile.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Automatically insert CSV contents into MySQL')
@@ -164,10 +198,17 @@ if __name__ == '__main__':
     parser.add_argument('--user', dest='user', default='root', help='The MySQL login username')
     parser.add_argument('--password', dest='password', default='', help='The MySQL login password')
     parser.add_argument('--host', dest='host', default='localhost', help='The MySQL host')
+    parser.add_argument('--output', dest='output', default='database', help='Output to database or file. If set to file, script would only write {table name}.sql file')
+    parser.add_argument('--createtable', dest='createtable', action='store_true', help='Excute "CREATE TABLE xxx" or not, default to NO')
+    parser.set_defaults(createtable=False)
+    #TODO: add argument to specify PRIMARY KEY
     parser.add_argument('input_file', help='The input CSV file')
     args = parser.parse_args(sys.argv[1:])
     if not args.table:
         # use input file name for table
         args.table = os.path.splitext(os.path.basename(args.input_file))[0]
     
-    main(args.input_file, args.user, args.password, args.host, args.table, args.database)
+    if args.output == "database":
+        mainToDatabase(args.input_file, args.user, args.password, args.host, args.table, args.database)
+    else:
+        mainToFile(args.input_file, args.table, args.createtable)
