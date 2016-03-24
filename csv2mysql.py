@@ -160,7 +160,7 @@ def mainToFile(input_file, table, createtable):
     output_file = input_file + ".sql"
     print "Importing `%s' into MySQL file: `%s'" % (input_file, output_file)
 
-    sql = []
+    sql = ['SET character_set_connection = utf8;', 'SET character_set_client = utf8;']
     if createtable:
         sql.append('CREATE DATABASE IF NOT EXISTS %s;' % database)
         sql.append('USE DATABASE %s;' % database)
